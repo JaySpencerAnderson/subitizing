@@ -30,9 +30,7 @@
 	var size = 32;
 	var divisions = 3;
 	var totalPts = 13;
-	var point = {width: size/2,
-	xoff: function(n) {return (0.25+(n%divisions))*size},
-	yoff: function(n) {return (0.25+Math.floor(n/divisions))*size}};
+	var point = {width: size/2};
 	var ctx = canvas.getContext("2d");
 	ctx.fillStyle = "#0000FF";
 	var then;
@@ -52,7 +50,6 @@
 		var d = new Date();
 		var t = d.getTime();
 		var delay = t - then;
-		quizDelay+=(t - then);
 		
 		switch(event.key){
 		case "1":
@@ -122,9 +119,14 @@
 		// 05    06    07
 		//    08    09
 		// 10    11    12
+
+		// There are 3 major rows
 		var majorRow=Math.floor(j/((2*divisions)-1));
+		// There are 5 grossCol in each row (broken into 3 and 2)
 		var grossCol=j % ((2*divisions)-1);
+		// True for the first 3 columns, false for the last two
 		var firstRow=grossCol < divisions;
+
 		var rowOffset, colOffset;
 		if(firstRow){
 			rowOffset=majorRow*size;
@@ -134,51 +136,70 @@
 			rowOffset=(majorRow*size) + Math.floor(size/2);
 			colOffset=(grossCol-divisions)*size + Math.floor(size/2);
 		}
+		// Move points away from top and left edges a quarter cell
 		rowOffset+=Math.floor(size/4);
 		colOffset+=Math.floor(size/4);
-		ctx.fillRect(colOffset, rowOffset, point.width, point.width);
+		// Tried to put a sort of softening of the edges
+		ctx.fillStyle = "#D0D0FF";
 		ctx.fillRect(colOffset+2, rowOffset-1, point.width-4, point.width+2);
 		ctx.fillRect(colOffset-1, rowOffset+2, point.width+2, point.width-4);
+		// This is the square that is half the width of the entire cell
+		ctx.fillStyle = "#0000FF";
+		ctx.fillRect(colOffset, rowOffset, point.width, point.width);
 	}
 	function clearScreen(){
 		ctx.clearRect(0,0,size*divisions,size*divisions);
 	}
 	function display(nn){
+	// Display some pattern of nn+1 points (out of 13 total (totalPts))
 		var n=nn+1;
 		clearScreen();
+
+		// Start by setting all cells true
 		var matrix=[];
 		for(var i=0;i<totalPts;i++){
 			matrix.push(true);
 		}
+		// Time is not used as time, it's used to randomize the pattern
+		// This is an easy way to generate a random integer in a range.
 		var d = new Date();
 		then = d.getTime();
 
+		// Starting point in matrix is randomized
 		var start=then % totalPts;
-		// Decimate matrix
+		// Decimate matrix, reducing from totalPts to n true
 		for(var i=n;i<totalPts;i++){
 			var j=0;
+			// Skip i points that are set.  Note that i changes for each point removed.
 			while(j < i){
 				if(matrix[start]){
 					j++;
 				}
 				start=((start+1) < totalPts)?(start+1):0;
 			}
+			// Find the next set point and set it false.
 			while(!matrix[start]){
 				start=((start+1) < totalPts)?(start+1):0;
 			}
 			matrix[start]=false;
 		}
 
+		// Draw all of the points on the canvas
 		var count=0;
+		// For each major row...
 		for(var row=0;row<totalPts;row+=((2*divisions)-1)){
+			// For each column on the major row
 			for(var col=0;col<divisions;col++){
+				// If it is set true, draw it.
 				if(matrix[row+col]){
 					drawPoint(row+col);
 					count++;
 				}
 			}
+			// For each minor row (in between the major rows)
 			if(matrix.length > (row + divisions)){
 				for(var col=0;col<(divisions-1);col++){
+					// If it is set true, draw it.
 					if(matrix[row+divisions+col]){
 						drawPoint(row+divisions+col);
 						count++;
@@ -188,16 +209,19 @@
 		}
 	}
 	function quiz(n){
+	// This is where we start from a button push
+		// Initialize
 		quizBase = n;
 		quizWrong = 0;
 		quizTestSize = 0;
+		// Quiz them 3 times on each number
 		quizCount=[];
 		for(var i=0;i<3;i++){
 			quizCount.push(3);
 			quizTestSize+=3;
 		}
-		quizDelay=0;
 		clearScreen();
+		// Give them 3 seconds to get there fingers in place
 		setTimeout(function(){ quizShow(); }, 3000);
 	}
 	function quizShow(){
@@ -208,6 +232,7 @@
 			sum+=quizCount[i];
 		}
 		if(sum == 0){
+			// Quiz is over
 			clearScreen();
 			if(quizWrong != 0){
 				results.innerHTML=quizWrong + " wrong";
@@ -217,14 +242,17 @@
 			var which=t%sum;
 			sum=0;
 			for(var i=0;i<quizCount.length;i++){
+				// Pick one of the number, randomized by the time stamp.
 				if(which >= sum && which < (sum+quizCount[i])){
 					quizCount[i]--;
 					quizLast=quizBase + i;
+					//Display the chosen number of points
 					display(quizLast);
 					break;
 				}
 				sum+=quizCount[i];
 			}
+			// Reset the focus to be the canvas so we capture the keystroke.
 			canvas.focus();
 		}
 	}
