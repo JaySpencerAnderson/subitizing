@@ -1,0 +1,237 @@
+<!doctype html>
+<html>
+<meta charset="UTF-8">
+<head>
+<title>Subitizing - Test response speed to recognize the number of objects without counting</title>
+</head>
+<body>
+<b>Pick the test numbers</b> (click a button)<br>
+...and then get your fingers on those keys!<br>
+<table>
+<tr><td><canvas id="canvas" tabindex='1' width="100" height="100"></canvas></td>
+<td>
+<table>
+<tr><td>
+<button onclick="quiz(6)">7 8 9</button></td><td id="7"></td><td id="8"></td><td id="9">
+</td></tr>
+<tr><td>
+<button onclick="quiz(3)">4 5 6</button></td><td id="4"></td><td id="5"></td><td id="6">
+</td></tr>
+<tr><td>
+<button onclick="quiz(0)">1 2 3</button></td><td id="1"></td><td id="2"></td><td id="3">
+</td></tr>
+</table>
+</td>
+</tr>
+</table>
+<p id="results"></p>
+<script>
+	var canvas = document.getElementById("canvas");
+	var size = 32;
+	var divisions = 3;
+	var totalPts = 13;
+	var point = {width: size/2,
+	xoff: function(n) {return (0.25+(n%divisions))*size},
+	yoff: function(n) {return (0.25+Math.floor(n/divisions))*size}};
+	var ctx = canvas.getContext("2d");
+	ctx.fillStyle = "#0000FF";
+	var then;
+	var quizBase,quizCount,quizWrong,quizLast,quizTestSize;
+	var inputKey;
+
+	clearScreen();
+	results.innerHTML="";
+	canvas.focus();
+
+	var response=[];
+	for(var i=0;i<9;i++){
+		response.push({delay: 0, presses: 0});
+	}
+
+	canvas.addEventListener("keydown", function(event) {
+		var d = new Date();
+		var t = d.getTime();
+		var delay = t - then;
+		quizDelay+=(t - then);
+		
+		switch(event.key){
+		case "1":
+		case "2":
+		case "3":
+		case "4":
+		case "5":
+		case "6":
+		case "7":
+		case "8":
+		case "9":
+			inputKey = event.key;
+			break;
+		case "End":
+			inputKey = "1";
+			break;
+		case "ArrowDown":
+			inputKey = "2";
+			break;
+		case "PageDown":
+			inputKey = "3";
+			break;
+		case "ArrowLeft":
+			inputKey = "4";
+			break;
+		case "Unidentified":
+			inputKey = "5";
+			break;
+		case "ArrowRight":
+			inputKey = "6";
+			break;
+		case "Home":
+			inputKey = "7";
+			break;
+		case "ArrowUp":
+			inputKey = "8";
+			break;
+		case "PageUp":
+			inputKey = "9";
+			break;
+		default:
+			inputKey = "Wrong";
+		}
+		var results = document.getElementById("results");
+		if(inputKey != (quizLast + 1)){
+			quizWrong++;
+			results.innerHTML=quizWrong + " incorrect";
+		}
+		else {
+			response[quizLast].delay+=delay;
+			response[quizLast].presses++;
+			var cell = document.getElementById(inputKey);
+			if((response[quizLast].delay/response[quizLast].presses) < 1000){
+				cell.innerHTML="<b>" + Math.floor(response[quizLast].delay/response[quizLast].presses) + "</b> ms";
+			}
+			else {
+				cell.innerHTML=Math.floor(response[quizLast].delay/response[quizLast].presses) + " ms";
+			}
+		}
+		quizShow();
+	});
+
+	function drawPoint(j){
+		// Plot matrix
+		// 00    01    02
+		//    03    04
+		// 05    06    07
+		//    08    09
+		// 10    11    12
+		var majorRow=Math.floor(j/((2*divisions)-1));
+		var grossCol=j % ((2*divisions)-1);
+		var firstRow=grossCol < divisions;
+		var rowOffset, colOffset;
+		if(firstRow){
+			rowOffset=majorRow*size;
+			colOffset=grossCol*size;
+		}
+		else {
+			rowOffset=(majorRow*size) + Math.floor(size/2);
+			colOffset=(grossCol-divisions)*size + Math.floor(size/2);
+		}
+		rowOffset+=Math.floor(size/4);
+		colOffset+=Math.floor(size/4);
+		ctx.fillRect(colOffset, rowOffset, point.width, point.width);
+		ctx.fillRect(colOffset+2, rowOffset-1, point.width-4, point.width+2);
+		ctx.fillRect(colOffset-1, rowOffset+2, point.width+2, point.width-4);
+	}
+	function clearScreen(){
+		ctx.clearRect(0,0,size*divisions,size*divisions);
+	}
+	function display(nn){
+		var n=nn+1;
+		clearScreen();
+		var matrix=[];
+		for(var i=0;i<totalPts;i++){
+			matrix.push(true);
+		}
+		var d = new Date();
+		then = d.getTime();
+
+		var start=then % totalPts;
+		// Decimate matrix
+		for(var i=n;i<totalPts;i++){
+			var j=0;
+			while(j < i){
+				if(matrix[start]){
+					j++;
+				}
+				start=((start+1) < totalPts)?(start+1):0;
+			}
+			while(!matrix[start]){
+				start=((start+1) < totalPts)?(start+1):0;
+			}
+			matrix[start]=false;
+		}
+
+		var count=0;
+		for(var row=0;row<totalPts;row+=((2*divisions)-1)){
+			for(var col=0;col<divisions;col++){
+				if(matrix[row+col]){
+					drawPoint(row+col);
+					count++;
+				}
+			}
+			if(matrix.length > (row + divisions)){
+				for(var col=0;col<(divisions-1);col++){
+					if(matrix[row+divisions+col]){
+						drawPoint(row+divisions+col);
+						count++;
+					}
+				}
+			}
+		}
+	}
+	function quiz(n){
+		quizBase = n;
+		quizWrong = 0;
+		quizTestSize = 0;
+		quizCount=[];
+		for(var i=0;i<3;i++){
+			quizCount.push(3);
+			quizTestSize+=3;
+		}
+		quizDelay=0;
+		clearScreen();
+		setTimeout(function(){ quizShow(); }, 3000);
+	}
+	function quizShow(){
+		var now = new Date();
+		var t = now.getTime();
+		var sum=0;
+		for(var i=0;i<quizCount.length;i++){
+			sum+=quizCount[i];
+		}
+		if(sum == 0){
+			clearScreen();
+			if(quizWrong != 0){
+				results.innerHTML=quizWrong + " wrong";
+			}
+		}
+		else {
+			var which=t%sum;
+			sum=0;
+			for(var i=0;i<quizCount.length;i++){
+				if(which >= sum && which < (sum+quizCount[i])){
+					quizCount[i]--;
+					quizLast=quizBase + i;
+					display(quizLast);
+					break;
+				}
+				sum+=quizCount[i];
+			}
+			canvas.focus();
+		}
+	}
+</script>
+<hr>
+
+Subitizing - The ability to recognize a small number of objects without counting them.
+
+</body>
+</html>
